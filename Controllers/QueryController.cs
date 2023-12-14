@@ -45,7 +45,7 @@ namespace Sanatorium.Controllers
 
         public IActionResult GetAlcoholicsBeds(QueryModel model)
         {
-            var bedIds = _db.AlcoholicInspectors.Where(e => e.AlcoholicId == model.AlcoholicId && e.Date >= model.From && e.Date <= model.To).DistinctBy(e => e.Id).Select(e => e.BedId);
+            var bedIds = _db.AlcoholicInspectors.Where(e => e.AlcoholicId == model.AlcoholicId && e.Date >= model.From && e.Date <= model.To).Select(e => e.BedId).ToList();
 
             var beds = new List<Bed>();
             foreach (var bedID in bedIds)
@@ -62,21 +62,16 @@ namespace Sanatorium.Controllers
 
         public IActionResult GetAlcoholicsForInspectorTimesPutInBed(QueryModel model)
         {
+            var alcoholics = _db.People
+                    .Where(person =>
+                        _db.AlcoholicInspectors
+                            .Count(ai => ai.InspectorId == model.InspectorId &&
+                                         ai.Date >= model.From &&
+                                         ai.Date <= model.To &&
+                                         ai.State == 1 &&
+                                         ai.AlcoholicId == person.Id) >= model.Times)
+                    .ToList();
 
-            var alcoholicsIdsInspectorsThatPutHimInBed = _db.AlcoholicInspectors.Where(e => e.InspectorId == model.InspectorId && e.Date >= model.From && e.Date <= model.To && e.State == 1);
-            var alcoholicsIds = alcoholicsIdsInspectorsThatPutHimInBed.Select(e => e.AlcoholicId).Distinct();
-            List<Person> alcoholics = new List<Person>() { };
-            foreach (var alcoholicId in alcoholicsIds)
-            {
-                int timesAcloholics = 0;
-                foreach (var alcoholic in alcoholicsIdsInspectorsThatPutHimInBed)
-                {
-                    if (alcoholic.AlcoholicId == alcoholicId)
-                    { timesAcloholics++; }
-                }
-                if (timesAcloholics >= model.Times)
-                    alcoholics.Add(_db.People.FirstOrDefault(e => e.Id == alcoholicId));
-            }
             return View(alcoholics);
         }
 
@@ -96,30 +91,27 @@ namespace Sanatorium.Controllers
 
         public IActionResult GetAlcoholicsTimesPutInBed(QueryModel model)
         {
+            var alcoholicsPutInBed = _db.AlcoholicInspectors
+        .Where(e => e.Date >= model.From && e.Date <= model.To && e.State == 1)
+        .ToList();
 
-            var alcoholicsPutInBed = _db.AlcoholicInspectors.Where(e => e.Date >= model.From && e.Date <= model.To && e.State == 1);
-            var alcoholicsIds = alcoholicsPutInBed.Select(e => e.AlcoholicId).Distinct();
-            List<Person?> alcoholics = new List<Person?>() { };
-            foreach (var alcoholicId in alcoholicsIds)
-            {
-                int timesAcloholics = 0;
-                foreach (var alcoholicInspector in alcoholicsPutInBed)
-                {
-                    if (alcoholicInspector.AlcoholicId == alcoholicId)
-                    { timesAcloholics++; }
+            var alcoholics = alcoholicsPutInBed
+                .GroupBy(e => e.AlcoholicId)
+                .Where(group => group.Count() >= model.Times)
+                .Select(group => _db.People.FirstOrDefault(person => person.Id == group.Key))
+                .Where(person => person != null)
+                .DistinctBy(person => person.Id)
+                .ToList();
 
-                    var alcoholic =  _db.People.FirstOrDefault(e => e.Id == alcoholicId);
-                    if (timesAcloholics >= model.Times)
-                        alcoholics.Add(alcoholic);
-                }
-               alcoholics = alcoholics.DistinctBy(e => e.Id).ToList();
-            }
             return View(alcoholics);
         }
 
         public IActionResult GetAllPairsForInspectorAndAlcoholic(QueryModel model)
         {
-            var alcoholicsInspectors = _db.AlcoholicInspectors.Where(e => e.Date >= model.From && e.Date <= model.To && e.InspectorId == model.InspectorId && e.AlcoholicId == model.AlcoholicId);
+            var alcoholicsInspectors = _db.AlcoholicInspectors
+    .Where(e => e.Date >= model.From && e.Date <= model.To && e.InspectorId == model.InspectorId && e.AlcoholicId == model.AlcoholicId)
+    .ToList();
+
             return View(alcoholicsInspectors);
         }
 
