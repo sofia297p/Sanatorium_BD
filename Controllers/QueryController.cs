@@ -41,6 +41,8 @@ namespace Sanatorium.Controllers
             }
 
             return View(inspectors);
+
+
         }
 
         public IActionResult GetAlcoholicsBeds(QueryModel model)
@@ -179,6 +181,7 @@ namespace Sanatorium.Controllers
             }
 
             return View(inspectors);
+
         }
     }
 }
