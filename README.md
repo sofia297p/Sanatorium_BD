@@ -31,4 +31,4 @@ The Sanatorium Database web solution offers various actions and queries for expl
 ## Query Testing:
 Feel free to experiment with different actions and queries suggested by the application.
 
-##Enjoy using the Sanatorium Database web solution!
+## Enjoy using the Sanatorium Database web solution!
