@@ -14,35 +14,13 @@ namespace Sanatorium.Controllers
 
         public IActionResult GetAlcoholicsInspectors(QueryModel model)
         {
-            var alcoholicsInspectorsThatPutHimInBed = _db.AlcoholicInspectors.Where(e => e.AlcoholicId == model.AlcoholicId && e.Date >= model.From && e.Date <= model.To && e.State == 1);
-            var inspectorIds = alcoholicsInspectorsThatPutHimInBed.Select(e => e.InspectorId).Distinct().ToList();
-
-            List<int?> inspectorsIDS = new List<int?>() { };
-            foreach (var inspectorId in inspectorIds)
-            {
-                int timesInspectors = 0;
-                foreach (var alcoholic in alcoholicsInspectorsThatPutHimInBed)
-                {
-                    if (alcoholic.InspectorId == inspectorId)
-                    { timesInspectors++; }
-                }
-                if (timesInspectors >= model.Times)
-                    inspectorsIDS.Add(inspectorId);
-            }
-
-            var inspectors = new List<Person>();
-            foreach (var inspectorId in inspectorsIDS)
-            {
-                var inspector = _db.People.FirstOrDefault(e => e.Id == inspectorId);
-                if (inspector != null)
-                {
-                    inspectors.Add(inspector);
-                }
-            }
+          var inspectors = _db.AlcoholicInspectors
+          .Where(e => e.AlcoholicId == model.AlcoholicId && e.State == 1 && e.Date >= model.From && e.Date <= model.To)
+          .Select(e => e.Inspector.User) 
+          .Distinct()
+          .ToList();
 
             return View(inspectors);
-
-
         }
 
         public IActionResult GetAlcoholicsBeds(QueryModel model)
@@ -89,7 +67,7 @@ namespace Sanatorium.Controllers
             return View(beds);
         }
 
-        //released > putInBed
+       
 
         public IActionResult GetAlcoholicsTimesPutInBed(QueryModel model)
         {
@@ -141,46 +119,30 @@ namespace Sanatorium.Controllers
 
         public IActionResult GetInspectorsReleasedLessThenPutToBed(QueryModel model)
         {
-            var alcoholicsInspectorsThatPutHimInBed = _db.AlcoholicInspectors.Where(e => e.AlcoholicId == model.AlcoholicId && e.State == 1);
-            var alcoholicsInspectorsThatReleasedHimFromBed = _db.AlcoholicInspectors.Where(e => e.AlcoholicId == model.AlcoholicId && e.State == 2);
-            List<int> inspectorsPutIDS = new List<int>() { };
-            List<int> inspectorsReleasedIDS = new List<int>() { };
+            var alcoholicsInspectorsThatPutHimInBed = _db.AlcoholicInspectors
+          .Where(e => e.AlcoholicId == model.AlcoholicId && e.State == 1 && e.Date >= model.From && e.Date <= model.To);
 
-            foreach (var inspectorPut in alcoholicsInspectorsThatPutHimInBed)
-            {
-                if (inspectorPut.InspectorId != null)
-                    inspectorsPutIDS.Add((int)inspectorPut.InspectorId);
-            }
+            var alcoholicsInspectorsThatReleasedOrEscaped = _db.AlcoholicInspectors
+                .Where(e => e.AlcoholicId == model.AlcoholicId && (e.State == 2 || e.State == 3) && e.Date >= model.From && e.Date <= model.To);
 
-            foreach (var inspectorRelease in alcoholicsInspectorsThatReleasedHimFromBed)
-            {
-                if (inspectorRelease.InspectorId != null)
-                    inspectorsReleasedIDS.Add((int)inspectorRelease.InspectorId);
-            }
+            var inspectorsPutIds = alcoholicsInspectorsThatPutHimInBed.Select(e => e.InspectorId).Distinct().ToList();
+            var inspectorsReleasedOrEscapedIds = alcoholicsInspectorsThatReleasedOrEscaped.Select(e => e.InspectorId).Distinct().ToList();
 
-            List<int> inspectorsIDS = new List<int>() { };
+            var inspectorsIds = inspectorsPutIds
+                .Where(inspectorId =>
+                    alcoholicsInspectorsThatPutHimInBed.Count(e => e.InspectorId == inspectorId) >
+                    alcoholicsInspectorsThatReleasedOrEscaped.Count(e => e.InspectorId == inspectorId))
+                .Union(inspectorsReleasedOrEscapedIds)
+                .ToList();
 
-            foreach (var inspectorId in inspectorsPutIDS)
-            {
-                if (_db.AlcoholicInspectors.Where(e => e.InspectorId == inspectorId && e.AlcoholicId == model.AlcoholicId && e.State == 1).Count()
-                    > _db.AlcoholicInspectors.Where(e => e.InspectorId == inspectorId && e.AlcoholicId == model.AlcoholicId && e.State == 2).Count())
-                {
-                    inspectorsIDS.Add(inspectorId);
-                }
-            }
-
-            List<Person> inspectors = new List<Person>() { };
-
-            foreach (var inspectorId in inspectorsIDS)
-            {
-                var inspector = _db.People.FirstOrDefault(e => e.Id == inspectorId);
-                if (inspector != null)
-                {
-                    inspectors.Add(inspector);
-                }
-            }
+            var inspectors = _db.People
+                .Where(p => inspectorsIds.Contains(p.Id))
+                .ToList();
 
             return View(inspectors);
+
+            
+
 
         }
     }
